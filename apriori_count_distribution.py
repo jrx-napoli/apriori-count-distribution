@@ -52,14 +52,19 @@ def parallel_count_distribution_apriori(data, min_support, num_processes):
         for p in processes:
             p.join()
 
+        # TODO: is this redundant? is global support == local support in this case?
         # Aggregate local count distributions to obtain global count distribution
         for itemset, support in local_count_dist.items():
             global_count_dist[itemset] = support
 
-        # Initialize iteration variables
-        iteration = 2
-        frequent_itemsets = []
+        # Prune infrequent itemsets based on global count distribution
+        frequent_itemsets = [list(itemset) for itemset, support in global_count_dist.items() if support >= min_support]
+        
+        # Display frequent itemsets for first iteration
+        print(f"Frequent Itemsets (Iteration 1): {frequent_itemsets}")
 
+        iteration = 2
+        
         while True:
             # Generate candidate itemsets for the current iteration
             candidate_itemsets = generate_candidate_itemsets(frequent_itemsets, iteration)
@@ -89,7 +94,7 @@ def parallel_count_distribution_apriori(data, min_support, num_processes):
             # Prune infrequent itemsets based on global count distribution
             frequent_itemsets = [list(itemset) for itemset, support in global_count_dist.items() if support >= min_support]
 
-            # Display or store frequent itemsets for the current iteration if needed
+            # Display or store frequent itemsets for the current iteration
             print(f"Frequent Itemsets (Iteration {iteration}): {frequent_itemsets}")
 
             iteration += 1
@@ -150,9 +155,15 @@ def has_infrequent_subset(itemset, frequent_itemsets, k):
 if __name__ == "__main__":
     # Example dataset
     dataset = [
-        ["a", "b"],
-        ["a", "c", "d"],
-        ["b", "c", "d", "e"]
+        ["1", "3", "4"],
+        ["2", "3", "5"],
+        ["1", "2", "3", "5"],
+        ["2", "5"],
+        ["1", "3", "5"]
+
+        # ["a", "b"],
+        # ["a", "c", "d"],
+        # ["b", "c", "d", "e"]
         # ... more transactions
     ]
 
