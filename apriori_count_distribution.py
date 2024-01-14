@@ -1,5 +1,4 @@
 from multiprocessing import Process, Manager
-from itertools import combinations
 
 def count_initial_itemsets_local(data_chunk, local_count_dist):
     """
@@ -8,8 +7,8 @@ def count_initial_itemsets_local(data_chunk, local_count_dist):
     available in a provided data partition.
 
     Args:
-        data_chunk (_type_): _description_
-        local_count_dist (_type_): _description_
+        data_chunk (list): Data partition containing a list of transactions
+        local_count_dist (dict): Dictionary keeping a record of local support counts
     """
     initial_candidate_itemsets = [set(item) for item in set(item for transaction in data_chunk for item in transaction)]
     count_itemsets_local(data_chunk, initial_candidate_itemsets, local_count_dist)
@@ -19,9 +18,9 @@ def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist):
     Counts local support for candidate itemsets in a data chunk.
 
     Args:
-        data_chunk (_type_): _description_
-        candidate_itemsets (_type_): _description_
-        local_count_dist (_type_): _description_
+        data_chunk (list): Data partition containing a list of transactions
+        candidate_itemsets (list): _description_
+        local_count_dist (dist): Dictionary keeping a record of local support counts
 
     Returns:
         void
@@ -42,7 +41,7 @@ def generate_candidate_itemsets(frequent_itemsets, k):
     """
     Generates candidate k-itemsets from frequent (k-1)-itemsets.
 
-    Parameters:
+    Args:
     - frequent_itemsets: List of frequent (k-1)-itemsets from the previous iteration.
     - k: Size of the itemsets to generate (k-itemsets).
 
@@ -81,7 +80,7 @@ def has_infrequent_subset(itemset, frequent_itemsets, k):
     - True if the candidate has an infrequent subset, False otherwise.
     """
     # Generate all possible subsets of size k from the candidate itemset
-    subsets = list(combinations(itemset, k))
+    subsets = list(generate_combinations(itemset, k))
 
     # Check if any subset is not frequent
     for subset in subsets:
@@ -89,6 +88,31 @@ def has_infrequent_subset(itemset, frequent_itemsets, k):
             return True  # Candidate has an infrequent subset
 
     return False  # Candidate does not have an infrequent subset
+
+def generate_combinations(items, k):
+    """
+    Generate all combinations of length k from a list of items.
+    
+    Args:
+    - itemset (list): List of items.
+    - k (int): Length of combinations to generate.
+    
+    Returns:
+    - List of combinations.
+    """
+    if k == 0:
+        return [()]
+    if not items:
+        return []
+
+    first_item = items[0]
+    rest_items = items[1:]
+
+    # Recursively generate combinations including the first item and excluding the first item
+    with_first_item = [(first_item,) + combo for combo in generate_combinations(rest_items, k - 1)]
+    without_first_item = generate_combinations(rest_items, k)
+
+    return with_first_item + without_first_item
 
 def parallel_count_distribution_apriori(data, min_support, num_processes):
     """
