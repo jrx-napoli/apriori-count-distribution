@@ -1,21 +1,10 @@
-import numpy as np
+import sys
+from options import get_args
+from apriori_count_distribution import find_frequent_itemsets
+from dataset_gen import get_data
 
-class Animal:
-    def __init__(self, age) -> None:
-        self.age = age
+if __name__ == '__main__':
+    args = get_args(sys.argv[1:])
+    data = get_data()
 
-    def sleep(self):
-        print("i schleep")
-
-
-class Dog(Animal):
-    def __init__(self, name) -> None:
-        self.name = name
-
-    def bark(self):
-        print(f'Woof woof, my name is {self.name}')
-
-
-dog_max = Dog("Max")
-dog_max.sleep
-
+    find_frequent_itemsets(data=data, num_processes=args.num_processes, min_support=args.min_support)

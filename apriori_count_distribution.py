@@ -118,7 +118,7 @@ def generate_combinations(items, k):
 
     return with_first_item + without_first_item
 
-def apriori_with_count_distribution(data, min_support, num_processes):
+def find_frequent_itemsets(data, num_processes, min_support):
     """
     Implements the Apriori algorithm with parallel count distribution.
 
@@ -133,6 +133,9 @@ def apriori_with_count_distribution(data, min_support, num_processes):
     # Initialize global count distribution using a shared manager
     with Manager() as manager:
         global_count_dist = manager.dict()
+
+        # Verify that there is enough data to distribute
+        if num_processes > len(data): num_processes = len(data)
 
         # Initialize the dataset partitioning
         chunk_size = len(data) // num_processes
@@ -205,28 +208,3 @@ def apriori_with_count_distribution(data, min_support, num_processes):
             print(f"Frequent Itemsets (Iteration {iteration}): {frequent_itemsets}")
 
             iteration += 1
-
-# Example usage
-if __name__ == "__main__":
-    # Example dataset
-    dataset = [
-        ["1", "3", "4"],
-        ["2", "3", "5"],
-        ["1", "2", "3", "5"],
-        ["2", "5"],
-        ["1", "3", "5"]
-
-        # ["a", "b"],
-        # ["a", "c", "d"],
-        # ["b", "c", "d", "e"]
-        # ... more transactions
-    ]
-
-    # Minimum support threshold
-    min_support = 2
-
-    # Number of processes
-    num_processes = 1
-
-    # Run the parallel count distribution Apriori algorithm
-    apriori_with_count_distribution(dataset, min_support, num_processes)
