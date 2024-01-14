@@ -1,6 +1,6 @@
-from multiprocessing import Process, Manager
+from multiprocessing import Process, Manager, Lock
 
-def count_initial_itemsets_local(data_chunk, local_count_dist):
+def count_initial_itemsets_local(data_chunk, local_count_dist, lock):
     """
     Counts local support for candidate itemsets in a data chunk
     during the first iteration. Count is done for unique, k=1 candidate itemsets
@@ -9,11 +9,14 @@ def count_initial_itemsets_local(data_chunk, local_count_dist):
     Args:
         data_chunk (list): Data partition containing a list of transactions
         local_count_dist (dict): Dictionary keeping a record of local support counts
+    
+    Returns:
+        void
     """
     initial_candidate_itemsets = [set(item) for item in set(item for transaction in data_chunk for item in transaction)]
-    count_itemsets_local(data_chunk, initial_candidate_itemsets, local_count_dist)
+    count_itemsets_local(data_chunk, initial_candidate_itemsets, local_count_dist, lock)
 
-def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist):
+def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist, lock):
     """
     Counts local support for candidate itemsets in a data chunk.
 
@@ -34,19 +37,20 @@ def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist):
                 local_support[tuple(itemset)] += 1
 
     # Update the local count distribution
-    for itemset, support in local_support.items():
-        local_count_dist[itemset] += support
+    with lock:
+        for itemset, support in local_support.items():
+            local_count_dist[itemset] += support
 
 def generate_candidate_itemsets(frequent_itemsets, k):
     """
     Generates candidate k-itemsets from frequent (k-1)-itemsets.
 
     Args:
-    - frequent_itemsets: List of frequent (k-1)-itemsets from the previous iteration.
-    - k: Size of the itemsets to generate (k-itemsets).
+        frequent_itemsets (list): List of frequent (k-1)-itemsets from the previous iteration.
+        k (int): Size of the itemsets to generate (k-itemsets).
 
     Returns:
-    - candidate_itemsets: List of candidate k-itemsets.
+        candidate_itemsets (list): List of candidate k-itemsets.
     """
     candidate_itemsets = []
 
@@ -71,13 +75,13 @@ def has_infrequent_subset(itemset, frequent_itemsets, k):
     """
     Checks if a candidate itemset has an infrequent subset.
 
-    Parameters:
-    - itemset: Candidate itemset.
-    - frequent_itemsets: List of frequent (k-1)-itemsets.
-    - k: Size of the subset to check.
+    Args:
+        itemset (list): Candidate itemset.
+        frequent_itemsets (list): List of frequent (k-1)-itemsets.
+        k (int): Size of the subset to check.
 
     Returns:
-    - True if the candidate has an infrequent subset, False otherwise.
+        (boolean): True if the candidate has an infrequent subset, False otherwise.
     """
     # Generate all possible subsets of size k from the candidate itemset
     subsets = list(generate_combinations(itemset, k))
@@ -94,11 +98,11 @@ def generate_combinations(items, k):
     Generate all combinations of length k from a list of items.
     
     Args:
-    - itemset (list): List of items.
-    - k (int): Length of combinations to generate.
+        itemset (list): List of items.
+        k (int): Length of combinations to generate.
     
     Returns:
-    - List of combinations.
+        (list): List of combinations.
     """
     if k == 0:
         return [()]
@@ -114,7 +118,7 @@ def generate_combinations(items, k):
 
     return with_first_item + without_first_item
 
-def parallel_count_distribution_apriori(data, min_support, num_processes):
+def apriori_with_count_distribution(data, min_support, num_processes):
     """
     Implements the Apriori algorithm with parallel count distribution.
 
@@ -144,11 +148,12 @@ def parallel_count_distribution_apriori(data, min_support, num_processes):
         initial_candidate_itemsets = [set(item) for item in set(item for transaction in data for item in transaction)]
         local_count_dist = manager.dict({itemset: 0 for itemset in map(tuple, initial_candidate_itemsets)})
 
+        lock = Lock()
         processes = []
 
         # Parallel processing for initial count distribution
         for i in range(num_processes):
-            p = Process(target=count_initial_itemsets_local, args=(data_chunks[i], local_count_dist))
+            p = Process(target=count_initial_itemsets_local, args=(data_chunks[i], local_count_dist, lock))
             processes.append(p)
             p.start()
 
@@ -182,7 +187,7 @@ def parallel_count_distribution_apriori(data, min_support, num_processes):
 
             # Parallel processing for counting support of candidate itemsets
             for i in range(num_processes):
-                p = Process(target=count_itemsets_local, args=(data_chunks[i], candidate_itemsets, local_count_dist))
+                p = Process(target=count_itemsets_local, args=(data_chunks[i], candidate_itemsets, local_count_dist, lock))
                 processes.append(p)
                 p.start()
 
@@ -224,4 +229,4 @@ if __name__ == "__main__":
     num_processes = 1
 
     # Run the parallel count distribution Apriori algorithm
-    parallel_count_distribution_apriori(dataset, min_support, num_processes)
+    apriori_with_count_distribution(dataset, min_support, num_processes)
