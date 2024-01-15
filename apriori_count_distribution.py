@@ -1,4 +1,5 @@
 from multiprocessing import Process, Manager, Lock
+import time
 
 def count_initial_itemsets_local(data_chunk, local_count_dist, lock):
     """
@@ -13,7 +14,7 @@ def count_initial_itemsets_local(data_chunk, local_count_dist, lock):
     Returns:
         void
     """
-    initial_candidate_itemsets = [set(item) for item in set(item for transaction in data_chunk for item in transaction)]
+    initial_candidate_itemsets = [item for item in set(item for transaction in data_chunk for item in transaction)]
     count_itemsets_local(data_chunk, initial_candidate_itemsets, local_count_dist, lock)
 
 def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist, lock):
@@ -32,7 +33,7 @@ def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist, lock)
 
     for transaction in data_chunk:
         for itemset in candidate_itemsets:
-            if set(itemset).issubset(transaction):
+            if set(itemset).issubset(transaction): # TODO: this set of itemset might be wrong
                 local_support.setdefault(tuple(itemset), 0)
                 local_support[tuple(itemset)] += 1
 
@@ -130,6 +131,7 @@ def find_frequent_itemsets(data, num_processes, min_support):
     Returns:
         void
     """
+    print("\nDiscovering frequent itemsets:")
     # Initialize global count distribution using a shared manager
     with Manager() as manager:
         global_count_dist = manager.dict()
@@ -148,11 +150,12 @@ def find_frequent_itemsets(data, num_processes, min_support):
         # NOTE: In theory, in the first pass, each processor is supposed to generate 
         # a unique, local candidate itemsets depending on its particular partition.
         # These itemsets should only be synchronised at a later step.
-        initial_candidate_itemsets = [set(item) for item in set(item for transaction in data for item in transaction)]
+        initial_candidate_itemsets = [item for item in set(item for transaction in data for item in transaction)]
         local_count_dist = manager.dict({itemset: 0 for itemset in map(tuple, initial_candidate_itemsets)})
 
         lock = Lock()
         processes = []
+        time_start = time.time()
 
         # Parallel processing for initial count distribution
         for i in range(num_processes):
@@ -171,11 +174,13 @@ def find_frequent_itemsets(data, num_processes, min_support):
         frequent_itemsets = [list(itemset) for itemset, support in global_count_dist.items() if support >= min_support]
         
         # Display frequent itemsets for first iteration
-        print(f"Frequent Itemsets (Iteration 1): {frequent_itemsets}")
+        print(f"Iteration 1 [{round(time.time() - time_start, 2)} s]: found {len(frequent_itemsets)}")
 
         iteration = 2
         
         while True:
+            time_start = time.time()
+
             # Generate candidate itemsets for the current iteration
             candidate_itemsets = generate_candidate_itemsets(frequent_itemsets, iteration)
 
@@ -205,6 +210,6 @@ def find_frequent_itemsets(data, num_processes, min_support):
             frequent_itemsets = [list(itemset) for itemset, support in global_count_dist.items() if support >= min_support]
 
             # Display or store frequent itemsets for the current iteration
-            print(f"Frequent Itemsets (Iteration {iteration}): {frequent_itemsets}")
+            print(f"Iteration {iteration} [{round(time.time() - time_start, 2)} s]: found {len(frequent_itemsets)}")
 
             iteration += 1
