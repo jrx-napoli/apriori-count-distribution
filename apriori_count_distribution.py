@@ -215,3 +215,51 @@ def find_frequent_itemsets(data, num_processes, min_support):
             iteration += 1
         
         return frequent_itemsets
+
+def generate_association_rules(frequent_itemsets, num_processes, min_confidence):
+    with Manager() as manager:
+
+        # Initialize the dataset partitioning
+        chunk_size = len(frequent_itemsets) // num_processes
+        remaining_frequent_itemsets = len(frequent_itemsets) % num_processes
+
+        frequent_itemsets_chunks = [frequent_itemsets[i * chunk_size:(i + 1) * chunk_size] for i in range(num_processes)]
+        frequent_itemsets_chunks[-1].extend(frequent_itemsets[num_processes * chunk_size:num_processes * chunk_size + remaining_frequent_itemsets])
+
+        lock = Lock()
+        processes = []
+        association_rules = manager.list()
+
+        # Parallel processing for generating association rules
+        for i in range(num_processes):
+            p = Process(target=generate_rules_local, args=(frequent_itemsets_chunks[i], min_confidence, association_rules, lock))
+            processes.append(p)
+            p.start()
+
+        for p in processes:
+            p.join()
+
+        # Convert manager.list to a regular list for easier handling
+        association_rules = list(association_rules)
+
+        return association_rules
+
+def generate_rules_local(frequent_itemsets, min_confidence, association_rules, lock):
+    # Generate association rules locally and update the shared list
+    local_rules = []
+
+    for itemset in frequent_itemsets:
+        if len(itemset) > 1:
+            for i in range(1, len(itemset)):
+                antecedent = itemset[:i]
+                consequent = itemset[i:]
+
+                support_itemset = global_count_dist[tuple(itemset)]
+                support_antecedent = global_count_dist[tuple(antecedent)]
+                confidence = support_itemset / support_antecedent
+
+                if confidence >= min_confidence:
+                    local_rules.append((antecedent, consequent, confidence))
+
+    with lock:
+        association_rules.extend(local_rules)
