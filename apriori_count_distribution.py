@@ -23,7 +23,7 @@ def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist, lock)
 
     Args:
         data_chunk (list): Data partition containing a list of transactions
-        candidate_itemsets (list): _description_
+        candidate_itemsets (list): List of candidate itemsets
         local_count_dist (dist): Dictionary keeping a record of local support counts
 
     Returns:
@@ -124,12 +124,13 @@ def find_frequent_itemsets(data, num_processes, min_support):
     Implements the Apriori algorithm with parallel count distribution.
 
     Args:
-        data (_type_): _description_
-        min_support (int): _description_
-        num_processes (int): _description_
+        data (list): Dataset
+        min_support (int): Minimal support of a frequent itemset
+        num_processes (int): Number of processes to perform parallel computations
 
     Returns:
-        void
+        frequent_itemsets (list): List of frequent itemsets 
+        global_count_dist (dict): Global count distribution of all frequent itemsets
     """
     print("\nDiscovering frequent itemsets:")
     # Initialize global count distribution using a shared manager
@@ -217,6 +218,18 @@ def find_frequent_itemsets(data, num_processes, min_support):
         return frequent_itemsets, dict(global_count_dist)
 
 def generate_association_rules(frequent_itemsets, global_count_dist, num_processes, min_confidence):
+    """
+    Generates association rules for provided frequent itemsets.
+
+    Args:
+        frequent_itemsets (list): List of frequent itemsets 
+        global_count_dist (dict): Global count distribution of all frequent itemsets
+        num_processes (int): Number of processes to perform parallel computations
+        min_confidence (float): Minimal confidence to support a rule
+
+    Returns:
+        (list): List of generated association rules
+    """
     print("\nGenerating association rules:")
     with Manager() as manager:
         association_rules = manager.list()
@@ -259,14 +272,46 @@ def generate_association_rules(frequent_itemsets, global_count_dist, num_process
         return association_rules
 
 def generate_rules_local(itemset_chunk, global_count_dist, min_confidence, association_rules, lock):
-    # Generate association rules locally for a specific itemset chunk
+    """
+    Generates association rules for a local itemset partition.
+
+    Args:
+        itemset_chunk (list): Partition of frequent itemsets
+        global_count_dist (dict): Global count distribution of all frequent itemsets
+        min_confidence (float): Minimal confidence to support a rule
+        association_rules (list): List of association rules shared between processes
+        lock (Lock): Lock guarding shared list of rules
+    
+    Returns:
+        void
+    """
+    # local_rules = []
+
+    # for itemset in itemset_chunk:
+    #     if len(itemset) > 1:
+    #         for i in range(1, len(itemset)):
+    #             antecedent = itemset[:i]
+    #             consequent = itemset[i:]
+
+    #             support_itemset = global_count_dist[tuple(itemset)]
+    #             support_antecedent = global_count_dist[tuple(antecedent)]
+    #             confidence = support_itemset / support_antecedent
+
+    #             if confidence >= min_confidence:
+    #                 local_rules.append((antecedent, consequent, round(confidence, 3)))
+
+    # with lock:
+    #     association_rules.extend(local_rules)
+
     local_rules = []
 
     for itemset in itemset_chunk:
-        if len(itemset) > 1:
-            for i in range(1, len(itemset)):
-                antecedent = itemset[:i]
-                consequent = itemset[i:]
+        # Generate all possible subsets (powerset) of the current itemset
+        all_subsets = list(powerset(itemset))
+
+        for antecedent in all_subsets:
+            if antecedent:  # Ensure antecedent is not an empty set
+                consequent = list(set(itemset) - set(antecedent))
 
                 support_itemset = global_count_dist[tuple(itemset)]
                 support_antecedent = global_count_dist[tuple(antecedent)]
@@ -277,3 +322,7 @@ def generate_rules_local(itemset_chunk, global_count_dist, min_confidence, assoc
 
     with lock:
         association_rules.extend(local_rules)
+
+def powerset(iterable):
+    s = list(iterable)
+    return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
