@@ -1,4 +1,5 @@
 from multiprocessing import Process, Manager, Lock
+import random
 import time
 
 def count_initial_itemsets_local(data_chunk, local_count_dist, lock):
@@ -305,24 +306,34 @@ def generate_rules_local(itemset_chunk, global_count_dist, min_confidence, assoc
 
     local_rules = []
 
+    # Iterate over all itemsets in data partition 
     for itemset in itemset_chunk:
-        # Generate all possible subsets (powerset) of the current itemset
-        all_subsets = list(powerset(itemset))
+        if len(itemset) > 1:
 
-        for antecedent in all_subsets:
-            if antecedent:  # Ensure antecedent is not an empty set
-                consequent = list(set(itemset) - set(antecedent))
+            # Begin examining largest subsets as antecedents first
+            antecedent_max_len = len(itemset) - 1
+            for antecedent_len in range(antecedent_max_len, 0, -1):
 
-                support_itemset = global_count_dist[tuple(itemset)]
-                support_antecedent = global_count_dist[tuple(antecedent)]
-                confidence = support_itemset / support_antecedent
+                found_rule = False
+                # Iterate over all possible antecedent of selected size
+                all_antecedents = generate_combinations(itemset, antecedent_len)
+                for antecedent in all_antecedents:
 
-                if confidence >= min_confidence:
-                    local_rules.append((antecedent, consequent, confidence))
+                    # Calculate rule confidence
+                    consequent = itemset - antecedent
+                    support_itemset = global_count_dist[tuple(itemset)]
+                    support_antecedent = global_count_dist[tuple(antecedent)]
+                    confidence = support_itemset / support_antecedent
+
+                    # Store rule meeting confidence threshold
+                    if confidence >= min_confidence:
+                        local_rules.append((antecedent, consequent, round(confidence, 3)))
+                        found_rule = True
+                
+                # If no rule was established for given antecedent size,
+                # discard all smaller antecedents as well
+                if not found_rule:
+                    break
 
     with lock:
         association_rules.extend(local_rules)
-
-def powerset(iterable):
-    s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
