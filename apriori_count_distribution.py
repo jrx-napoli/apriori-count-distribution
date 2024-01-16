@@ -174,7 +174,7 @@ def find_frequent_itemsets(data, num_processes, min_support):
         frequent_itemsets = [list(itemset) for itemset, support in global_count_dist.items() if support >= min_support]
         
         # Display frequent itemsets for first iteration
-        print(f"Iteration 1 [{round(time.time() - time_start, 2)} s]: found {len(frequent_itemsets)}")
+        print(f"Iteration 1 [{round(time.time() - time_start, 2)} s]: {len(frequent_itemsets)} total")
 
         iteration = 2
         
@@ -210,45 +210,59 @@ def find_frequent_itemsets(data, num_processes, min_support):
             frequent_itemsets = [list(itemset) for itemset, support in global_count_dist.items() if support >= min_support]
 
             # Display or store frequent itemsets for the current iteration
-            print(f"Iteration {iteration} [{round(time.time() - time_start, 2)} s]: found {len(frequent_itemsets)}")
+            print(f"Iteration {iteration} [{round(time.time() - time_start, 2)} s]: {len(frequent_itemsets)} total")
 
             iteration += 1
         
-        return frequent_itemsets
+        return frequent_itemsets, dict(global_count_dist)
 
-def generate_association_rules(frequent_itemsets, num_processes, min_confidence):
+def generate_association_rules(frequent_itemsets, global_count_dist, num_processes, min_confidence):
+    print("\nGenerating association rules:")
     with Manager() as manager:
-
-        # Initialize the dataset partitioning
-        chunk_size = len(frequent_itemsets) // num_processes
-        remaining_frequent_itemsets = len(frequent_itemsets) % num_processes
-
-        frequent_itemsets_chunks = [frequent_itemsets[i * chunk_size:(i + 1) * chunk_size] for i in range(num_processes)]
-        frequent_itemsets_chunks[-1].extend(frequent_itemsets[num_processes * chunk_size:num_processes * chunk_size + remaining_frequent_itemsets])
+        association_rules = manager.list()
 
         lock = Lock()
         processes = []
-        association_rules = manager.list()
 
-        # Parallel processing for generating association rules
-        for i in range(num_processes):
-            p = Process(target=generate_rules_local, args=(frequent_itemsets_chunks[i], min_confidence, association_rules, lock))
-            processes.append(p)
-            p.start()
+        # Partition frequent itemsets by length and distribute among processors
+        # NOTE: Since the number of rules that can be generated from an
+        # itemset is sensitive to the itemset's size, we attempt equitable balancing 
+        # by partitioning the itemsets of each length equally across the processors.
+        itemsets_by_length = {}
+        for itemset in frequent_itemsets:
+            length = len(itemset)
+            itemsets_by_length.setdefault(length, []).append(itemset)
+
+        time_start = time.time()
+
+        for length, itemsets in itemsets_by_length.items():
+            chunk_size = len(itemsets) // num_processes
+            remaining_itemsets = len(itemsets) % num_processes
+
+            itemset_chunks = [itemsets[i * chunk_size:(i + 1) * chunk_size] for i in range(num_processes)]
+            itemset_chunks[-1].extend(itemsets[num_processes * chunk_size:num_processes * chunk_size + remaining_itemsets])
+
+            # Parallel processing for generating association rules
+            for i in range(num_processes):
+                p = Process(target=generate_rules_local, args=(itemset_chunks[i], global_count_dist, min_confidence, association_rules, lock))
+                processes.append(p)
+                p.start()
 
         for p in processes:
             p.join()
 
         # Convert manager.list to a regular list for easier handling
         association_rules = list(association_rules)
+        print(f"Generated {len(association_rules)} rules [{round(time.time() - time_start, 2)} s]")
+        print(association_rules)
 
         return association_rules
 
-def generate_rules_local(frequent_itemsets, min_confidence, association_rules, lock):
-    # Generate association rules locally and update the shared list
+def generate_rules_local(itemset_chunk, global_count_dist, min_confidence, association_rules, lock):
+    # Generate association rules locally for a specific itemset chunk
     local_rules = []
 
-    for itemset in frequent_itemsets:
+    for itemset in itemset_chunk:
         if len(itemset) > 1:
             for i in range(1, len(itemset)):
                 antecedent = itemset[:i]
