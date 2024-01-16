@@ -213,3 +213,5 @@ def find_frequent_itemsets(data, num_processes, min_support):
             print(f"Iteration {iteration} [{round(time.time() - time_start, 2)} s]: found {len(frequent_itemsets)}")
 
             iteration += 1
+        
+        return frequent_itemsets

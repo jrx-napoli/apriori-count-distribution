@@ -1,13 +1,16 @@
 from ucimlrepo import fetch_ucirepo
 
 def dummy():
-    return [
+    print("= Dummy Dataset=")
+    dataset = [
         ["1", "3", "4"],
         ["2", "3", "5"],
         ["1", "2", "3", "5"],
         ["2", "5"],
         ["1", "3", "5"]
     ]
+    print(dataset)
+    return dataset
 
 def online_retail():
     # fetch dataset
