@@ -14,7 +14,7 @@ def count_initial_itemsets_local(data_chunk, local_count_dist, lock):
     Returns:
         void
     """
-    initial_candidate_itemsets = [item for item in set(item for transaction in data_chunk for item in transaction)]
+    initial_candidate_itemsets = [[item] for item in set(item for transaction in data_chunk for item in transaction)]
     count_itemsets_local(data_chunk, initial_candidate_itemsets, local_count_dist, lock)
 
 def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist, lock):
@@ -33,7 +33,7 @@ def count_itemsets_local(data_chunk, candidate_itemsets, local_count_dist, lock)
 
     for transaction in data_chunk:
         for itemset in candidate_itemsets:
-            if set(itemset).issubset(transaction): # TODO: this set of itemset might be wrong
+            if set(itemset).issubset(transaction):
                 local_support.setdefault(tuple(itemset), 0)
                 local_support[tuple(itemset)] += 1
 
@@ -90,7 +90,7 @@ def has_infrequent_subset(itemset, frequent_itemsets, k):
     # Check if any subset is not frequent
     for subset in subsets:
         if list(subset) not in frequent_itemsets:
-            return True  # Candidate has an infrequent subset
+            return True
 
     return False  # Candidate does not have an infrequent subset
 
@@ -150,7 +150,7 @@ def find_frequent_itemsets(data, num_processes, min_support):
         # NOTE: In theory, in the first pass, each processor is supposed to generate 
         # a unique, local candidate itemsets depending on its particular partition.
         # These itemsets should only be synchronised at a later step.
-        initial_candidate_itemsets = [item for item in set(item for transaction in data for item in transaction)]
+        initial_candidate_itemsets = [[item] for item in set(item for transaction in data for item in transaction)]
         local_count_dist = manager.dict({itemset: 0 for itemset in map(tuple, initial_candidate_itemsets)})
 
         lock = Lock()

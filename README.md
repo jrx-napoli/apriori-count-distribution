@@ -3,5 +3,5 @@ Implementation of Count Distribution modification to the Apriori algorithm intro
 
 #### Run:
 ```
-python main.py --num_processes 1 --min_support 2
+python main.py --dataset dummy --num_processes 4 --min_support 2
 ```

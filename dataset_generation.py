@@ -3,11 +3,11 @@ from ucimlrepo import fetch_ucirepo
 def dummy():
     print("= Dummy Dataset=")
     dataset = [
-        ["1", "3", "4"],
-        ["2", "3", "5"],
-        ["1", "2", "3", "5"],
-        ["2", "5"],
-        ["1", "3", "5"]
+        ["11", "33", "44"],
+        ["22", "33", "55"],
+        ["11", "22", "33", "55"],
+        ["22", "55"],
+        ["11", "33", "55"]
     ]
     print(dataset)
     return dataset
