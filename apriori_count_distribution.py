@@ -1,5 +1,4 @@
 from multiprocessing import Process, Manager, Lock
-import random
 import time
 
 def count_initial_itemsets_local(data_chunk, local_count_dist, lock):
@@ -216,6 +215,9 @@ def find_frequent_itemsets(data, num_processes, min_support):
 
             iteration += 1
         
+        # for itemset in frequent_itemsets: print(itemset)
+        # for count in global_count_dist.items(): print(count)
+
         return frequent_itemsets, dict(global_count_dist)
 
 def generate_association_rules(frequent_itemsets, global_count_dist, num_processes, min_confidence):
@@ -267,8 +269,9 @@ def generate_association_rules(frequent_itemsets, global_count_dist, num_process
 
         # Convert manager.list to a regular list for easier handling
         association_rules = list(association_rules)
+        
         print(f"Generated {len(association_rules)} rules [{round(time.time() - time_start, 2)} s]")
-        print(association_rules)
+        for rule in association_rules: print(rule)
 
         return association_rules
 
@@ -286,24 +289,6 @@ def generate_rules_local(itemset_chunk, global_count_dist, min_confidence, assoc
     Returns:
         void
     """
-    # local_rules = []
-
-    # for itemset in itemset_chunk:
-    #     if len(itemset) > 1:
-    #         for i in range(1, len(itemset)):
-    #             antecedent = itemset[:i]
-    #             consequent = itemset[i:]
-
-    #             support_itemset = global_count_dist[tuple(itemset)]
-    #             support_antecedent = global_count_dist[tuple(antecedent)]
-    #             confidence = support_itemset / support_antecedent
-
-    #             if confidence >= min_confidence:
-    #                 local_rules.append((antecedent, consequent, round(confidence, 3)))
-
-    # with lock:
-    #     association_rules.extend(local_rules)
-
     local_rules = []
 
     # Iterate over all itemsets in data partition 
@@ -320,18 +305,18 @@ def generate_rules_local(itemset_chunk, global_count_dist, min_confidence, assoc
                 for antecedent in all_antecedents:
 
                     # Calculate rule confidence
-                    consequent = itemset - antecedent
+                    consequent = [i for i in itemset if i not in antecedent]
                     support_itemset = global_count_dist[tuple(itemset)]
                     support_antecedent = global_count_dist[tuple(antecedent)]
                     confidence = support_itemset / support_antecedent
 
                     # Store rule meeting confidence threshold
                     if confidence >= min_confidence:
-                        local_rules.append((antecedent, consequent, round(confidence, 3)))
+                        local_rules.append((list(antecedent), consequent, round(confidence, 3)))
                         found_rule = True
                 
                 # If no rule was established for given antecedent size,
-                # discard all smaller antecedents as well
+                # discard all smaller antecedents
                 if not found_rule:
                     break
 
