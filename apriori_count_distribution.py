@@ -271,7 +271,7 @@ def generate_association_rules(frequent_itemsets, global_count_dist, num_process
         association_rules = list(association_rules)
         
         print(f"Generated {len(association_rules)} rules [{round(time.time() - time_start, 2)} s]")
-        for rule in association_rules: print(rule)
+        # for rule in association_rules: print(rule)
 
         return association_rules
 
